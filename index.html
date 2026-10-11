@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TicTacToe">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>Tic-Tac-Toe vs AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root, body[data-theme="midnight"] {
+    --bg: #0f172a; --text: #e2e8f0; --muted: #94a3b8; --faint: #64748b;
+    --card: #1e293b; --card-press: #334155; --border: #334155;
+    --x: #38bdf8; --o: #fb7185; --win: #14532d;
+    --accent: #0369a1; --accent-border: #0369a1;
+  }
+  body[data-theme="light"] {
+    --bg: #f1f5f9; --text: #0f172a; --muted: #64748b; --faint: #94a3b8;
+    --card: #ffffff; --card-press: #e2e8f0; --border: #cbd5e1;
+    --x: #0284c7; --o: #e11d48; --win: #bbf7d0;
+    --accent: #0284c7; --accent-border: #0284c7;
+  }
+  body[data-theme="neon"] {
+    --bg: #050510; --text: #f0f0ff; --muted: #8b8bb8; --faint: #55557a;
+    --card: #0d0d24; --card-press: #1a1a3d; --border: #2a2a5a;
+    --x: #00f0ff; --o: #ff2fb3; --win: #0d3b2e;
+    --accent: #7c3aed; --accent-border: #7c3aed;
+  }
+  body[data-theme="sunset"] {
+    --bg: #2b1a12; --text: #fde8d8; --muted: #c99b7a; --faint: #8a6550;
+    --card: #3d2618; --card-press: #553522; --border: #5c3a24;
+    --x: #fbbf24; --o: #fb7185; --win: #3f6212;
+    --accent: #c2410c; --accent-border: #c2410c;
+  }
+  body[data-theme="camo"] {
+    --bg: #16160f; --text: #ece2c6; --muted: #a89a76; --faint: #6b6248;
+    --card: #22221a; --card-press: #2e2e20; --border: #3a3a28;
+    --x: #d8c9a3; --o: #9aa05c; --win: #4b5320;
+    --accent: #4b5320; --accent-border: #5a6528;
+    background-image:
+      radial-gradient(ellipse 90px 55px at 18% 28%, rgba(75, 83, 32, 0.28), transparent),
+      radial-gradient(ellipse 110px 65px at 72% 62%, rgba(122, 110, 80, 0.20), transparent),
+      radial-gradient(ellipse 70px 45px at 42% 82%, rgba(90, 107, 72, 0.24), transparent),
+      radial-gradient(ellipse 100px 60px at 86% 18%, rgba(74, 59, 44, 0.28), transparent),
+      radial-gradient(ellipse 60px 90px at 8% 72%, rgba(75, 83, 32, 0.20), transparent);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    user-select: none;
+    transition: background 0.25s, color 0.25s;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 18px; }
+  .scoreboard {
+    display: flex; gap: 12px; margin-bottom: 18px;
+  }
+  .score {
+    background: var(--card); border-radius: 12px; padding: 10px 18px; text-align: center; min-width: 86px;
+  }
+  .score .num { font-size: 1.5rem; font-weight: 700; }
+  .score .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  #score-you .num { color: var(--x); }
+  #score-draw .num { color: var(--muted); }
+  #score-ai .num { color: var(--o); }
+  .board {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    width: min(88vw, 340px); aspect-ratio: 1;
+  }
+  .cell {
+    background: var(--card); border-radius: 14px;
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(2rem, 12vw, 3.2rem); font-weight: 700; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    min-height: 0; min-width: 0; overflow: hidden;
+  }
+  body[data-theme="neon"] .cell { box-shadow: 0 0 12px rgba(124, 58, 237, 0.25); }
+  body[data-theme="neon"] .cell.x { text-shadow: 0 0 18px var(--x); }
+  body[data-theme="neon"] .cell.o { text-shadow: 0 0 18px var(--o); }
+  .cell:not(.taken):active { transform: scale(0.94); background: var(--card-press); }
+  .cell.x { color: var(--x); cursor: default; }
+  .cell.o { color: var(--o); cursor: default; }
+  .cell.win { background: var(--win); }
+  .cell.taken { cursor: default; }
+  #status { margin: 18px 0 14px; font-size: 1.05rem; min-height: 1.6em; text-align: center; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; }
+  button {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 16px; font-size: 0.9rem; cursor: pointer;
+  }
+  button.active { background: var(--accent); border-color: var(--accent-border); color: #fff; }
+  button:active { transform: scale(0.96); }
+  #new-game { background: var(--accent); border-color: var(--accent-border); color: #fff; font-weight: 600; }
+  .hint { color: var(--faint); font-size: 0.78rem; margin-top: 6px; text-align: center; }
+  .theme-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+  #join-code {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 12px; font-size: 1rem; width: 140px;
+    text-align: center; letter-spacing: 0.25em; text-transform: uppercase;
+    font-weight: 700; margin-right: 8px;
+  }
+  #join-code:focus { outline: 2px solid var(--accent); }
+  #game-code { font-size: 2.4rem; font-weight: 800; letter-spacing: 0.35em; text-indent: 0.35em; margin: 6px 0 10px; color: var(--x); }
+  #online-panel { margin-bottom: 14px; text-align: center; width: 100%; }
+  a.coffee {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 14px; background: #ffdd00; color: #111;
+    text-decoration: none; font-size: 0.88rem; font-weight: 700;
+    border-radius: 10px; padding: 9px 16px; border: 1px solid #e6c200;
+  }
+  a.coffee:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe</h1>
+  <div class="subtitle">You (X) vs AI (O)</div>
+
+  <div class="scoreboard">
+    <div class="score" id="score-you"><div class="num">0</div><div class="label" id="label-you">You</div></div>
+    <div class="score" id="score-draw"><div class="num">0</div><div class="label">Draws</div></div>
+    <div class="score" id="score-ai"><div class="num">0</div><div class="label" id="label-ai">AI</div></div>
+  </div>
+
+  <div class="board" id="board"></div>
+  <div id="status">Your move</div>
+
+  <div class="controls">
+    <button id="new-game">New Game</button>
+  </div>
+  <div class="controls" id="mode">
+    <button data-m="ai" class="active">vs AI</button>
+    <button data-m="2p">2 Players</button>
+    <button data-m="online">Online</button>
+  </div>
+  <div id="online-panel" style="display:none">
+    <div id="online-setup">
+      <div class="controls">
+        <button id="btn-create">Create Game</button>
+        <button id="btn-join-show">Join Game</button>
+      </div>
+      <div id="join-form" style="display:none; margin-top:10px;">
+        <input id="join-code" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <button id="btn-join">Join</button>
+      </div>
+    </div>
+    <div id="online-waiting" style="display:none">
+      <div style="font-size:0.9rem; color:var(--muted);">Share this code with your opponent:</div>
+      <div id="game-code"></div>
+      <button id="btn-copy-code">Copy Code</button>
+      <div style="margin-top:10px; color:var(--muted); font-size:0.9rem;">Waiting for opponent…</div>
+    </div>
+    <div id="online-status" style="display:none; margin-top:10px; font-size:0.9rem; color:var(--muted);"></div>
+  </div>
+  <div class="controls" id="difficulty">
+    <button data-d="easy">Easy</button>
+    <button data-d="medium" class="active">Medium</button>
+    <button data-d="hard">Hard</button>
+  </div>
+  <div class="controls" id="starter">
+    <button data-s="you" class="active" id="starter-you">You start</button>
+    <button data-s="ai" id="starter-ai">AI starts</button>
+  </div>
+  <div class="controls" id="themes">
+    <button data-t="midnight" class="active"><span class="theme-dot" style="background:#38bdf8"></span>Midnight</button>
+    <button data-t="light"><span class="theme-dot" style="background:#e2e8f0;border:1px solid #94a3b8"></span>Light</button>
+    <button data-t="neon"><span class="theme-dot" style="background:#00f0ff"></span>Neon</button>
+    <button data-t="sunset"><span class="theme-dot" style="background:#fbbf24"></span>Sunset</button>
+    <button data-t="camo"><span class="theme-dot" style="background:#4b5320"></span>Camo</button>
+  </div>
+  <div class="hint" id="hint-hard">Hard mode is unbeatable — best you can do is draw.</div>
+  <a class="coffee" href="https://buymeacoffee.com/wilsonsamiano" target="_blank" rel="noopener noreferrer">☕ Buy me a coffee</a>
+
+<script>
+(function() {
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+  let board, gameOver, difficulty = 'medium', starter = 'you';
+  let mode = 'ai', currentPlayer = 'X';
+  let scores = { you: 0, draw: 0, ai: 0 };
+  try {
+    const saved = JSON.parse(localStorage.getItem('ttt-scores'));
+    if (saved) scores = saved;
+  } catch (e) {}
+
+  function saveScores() {
+    try { localStorage.setItem('ttt-scores', JSON.stringify(scores)); } catch (e) {}
+  }
+
+  function renderScores() {
+    document.querySelector('#score-you .num').textContent = scores.you;
+    document.querySelector('#score-draw .num').textContent = scores.draw;
+    document.querySelector('#score-ai .num').textContent = scores.ai;
+  }
+
+  function checkWin(b) {
+    for (const line of WINS) {
+      const [a, c, d] = line;
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) return { winner: b[a], line };
+    }
+    return b.includes('') ? null : { winner: 'draw', line: [] };
+  }
+
+  function emptyCells(b) {
+    const cells = [];
+    b.forEach((v, i) => { if (!v) cells.push(i); });
+    return cells;
+  }
+
+  function minimax(b, isMax, depth) {
+    const result = checkWin(b);
+    if (result) {
+      if (result.winner === 'O') return 10 - depth;
+      if (result.winner === 'X') return depth - 10;
+      return 0;
+    }
+    let best = isMax ? -Infinity : Infinity;
+    for (const i of emptyCells(b)) {
+      b[i] = isMax ? 'O' : 'X';
+      const score = minimax(b, !isMax, depth + 1);
+      b[i] = '';
+      best = isMax ? Math.max(best, score) : Math.min(best, score);
+    }
+    return best;
+  }
+
+  function bestMove() {
+    let bestScore = -Infinity, move = -1;
+    for (const i of emptyCells(board)) {
+      board[i] = 'O';
+      const score = minimax(board, false, 0);
+      board[i] = '';
+      if (score > bestScore) { bestScore = score; move = i; }
+    }
+    return move;
+  }
+
+  function aiMove() {
+    const empties = emptyCells(board);
+    if (!empties.length) return;
+    let move;
+    if (difficulty === 'easy') {
+      move = empties[Math.floor(Math.random() * empties.length)];
+    } else if (difficulty === 'medium') {
+      move = Math.random() < 0.6 ? bestMove() : empties[Math.floor(Math.random() * empties.length)];
+    } else {
+      move = bestMove();
+    }
+    board[move] = 'O';
+    drawBoard();
+    const result = checkWin(board);
+    if (result) endGame(result);
+    else { statusEl.textContent = 'Your move'; }
+  }
+
+  function endGame(result) {
+    gameOver = true;
+    if (result.winner === 'draw') {
+      scores.draw++;
+      statusEl.textContent = "It's a draw.";
+    } else if (mode === 'online') {
+      if (result.winner === myMark) { scores.you++; statusEl.textContent = 'You win! 🎉'; }
+      else { scores.ai++; statusEl.textContent = 'Opponent wins.'; }
+    } else if (result.winner === 'X') {
+      scores.you++;
+      statusEl.textContent = mode === '2p' ? 'Player 1 (X) wins! 🎉' : 'You win! 🎉';
+    } else {
+      scores.ai++;
+      statusEl.textContent = mode === '2p' ? 'Player 2 (O) wins! 🎉' : 'AI wins. Try again!';
+    }
+    result.line.forEach(i => {
+      boardEl.children[i].classList.add('win');
+    });
+    saveScores();
+    renderScores();
+  }
+
+  function drawBoard() {
+    board.forEach((v, i) => {
+      const cell = boardEl.children[i];
+      cell.textContent = v;
+      cell.className = 'cell' + (v ? ' taken ' + v.toLowerCase() : '');
+    });
+  }
+
+  function newGame() {
+    if (mode === 'online') {
+      if (!onlineConnected) return;
+      if (myMark === 'X') {
+        onlineRound++;
+        const starterMark = onlineRound % 2 === 0 ? 'X' : 'O';
+        sendState({ type: 'reset', round: onlineRound, starter: starterMark });
+        beginOnlineRound(starterMark);
+      } else {
+        sendState({ type: 'rematch-request' });
+        statusEl.textContent = 'Rematch requested…';
+      }
+      return;
+    }
+    board = Array(9).fill('');
+    gameOver = false;
+    currentPlayer = 'X';
+    drawBoard();
+    const secondStarts = starter === 'ai';
+    if (mode === '2p') {
+      if (secondStarts) {
+        currentPlayer = 'O';
+        statusEl.textContent = 'Player 2 (O) — your move';
+      } else {
+        statusEl.textContent = 'Player 1 (X) — your move';
+      }
+    } else if (secondStarts) {
+      statusEl.textContent = 'AI is thinking…';
+      setTimeout(aiMove, 500);
+    } else {
+      statusEl.textContent = 'Your move';
+    }
+  }
+
+  boardEl.addEventListener('click', (e) => {
+    const idx = Array.prototype.indexOf.call(boardEl.children, e.target);
+    if (idx < 0 || board[idx] || gameOver) return;
+    if (mode === '2p') {
+      board[idx] = currentPlayer;
+      drawBoard();
+      const result = checkWin(board);
+      if (result) { endGame(result); return; }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      statusEl.textContent = currentPlayer === 'X' ? 'Player 1 (X) — your move' : 'Player 2 (O) — your move';
+      return;
+    }
+    if (mode === 'online') {
+      if (!onlineConnected || currentPlayer !== myMark) return;
+      board[idx] = myMark;
+      drawBoard();
+      sendState({ type: 'move', index: idx });
+      const result = checkWin(board);
+      if (result) { endGame(result); return; }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateOnlineStatus();
+      return;
+    }
+    board[idx] = 'X';
+    drawBoard();
+    const result = checkWin(board);
+    if (result) { endGame(result); return; }
+    statusEl.textContent = 'AI is thinking…';
+    setTimeout(aiMove, 450);
+  });
+
+  document.getElementById('new-game').addEventListener('click', newGame);
+
+  document.getElementById('mode').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    mode = btn.dataset.m;
+    document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('active', b === btn));
+    const is2p = mode === '2p';
+    const isOnline = mode === 'online';
+    document.getElementById('difficulty').style.display = (is2p || isOnline) ? 'none' : '';
+    document.getElementById('hint-hard').style.display = (is2p || isOnline) ? 'none' : '';
+    document.getElementById('starter').style.display = isOnline ? 'none' : '';
+    document.getElementById('online-panel').style.display = isOnline ? '' : 'none';
+    if (isOnline) {
+      cleanupOnline();
+      showOnlinePanel('setup');
+      setOnlineStatus('');
+      board = Array(9).fill('');
+      gameOver = true;
+      drawBoard();
+      document.getElementById('label-you').textContent = 'You';
+      document.getElementById('label-ai').textContent = 'Opponent';
+      statusEl.textContent = 'Create a game or join with a code.';
+      return;
+    }
+    cleanupOnline();
+    document.getElementById('label-you').textContent = is2p ? 'P1 (X)' : 'You';
+    document.getElementById('label-ai').textContent = is2p ? 'P2 (O)' : 'AI';
+    document.getElementById('starter-you').textContent = is2p ? 'P1 (X) starts' : 'You start';
+    document.getElementById('starter-ai').textContent = is2p ? 'P2 (O) starts' : 'AI starts';
+    newGame();
+  });
+
+  // ---------- Online multiplayer (PeerJS) ----------
+  let peer = null, conn = null;
+  let myMark = 'X', onlineRound = 0, onlineConnected = false;
+
+  function setOnlineStatus(msg) {
+    const el = document.getElementById('online-status');
+    el.style.display = msg ? '' : 'none';
+    el.textContent = msg || '';
+  }
+
+  function showOnlinePanel(state) {
+    document.getElementById('online-setup').style.display = state === 'setup' ? '' : 'none';
+    document.getElementById('online-waiting').style.display = state === 'waiting' ? '' : 'none';
+    if (state === 'setup') document.getElementById('join-form').style.display = 'none';
+  }
+
+  function cleanupOnline() {
+    try { conn && conn.close(); } catch (e) {}
+    try { peer && peer.destroy(); } catch (e) {}
+    peer = null; conn = null; onlineConnected = false;
+  }
+
+  function sendState(msg) {
+    if (conn && conn.open) { try { conn.send(msg); } catch (e) {} }
+  }
+
+  function genCode() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let c = '';
+    for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+    return c;
+  }
+
+  function peerReady() {
+    if (window.Peer) return true;
+    setOnlineStatus('Networking failed to load. Check your internet connection and try again.');
+    return false;
+  }
+
+  function createGame() {
+    if (!peerReady()) return;
+    cleanupOnline();
+    const code = genCode();
+    myMark = 'X';
+    onlineRound = 0;
+    setOnlineStatus('');
+    try {
+      peer = new Peer('maverick-ttt-' + code);
+    } catch (e) {
+      setOnlineStatus('Could not start networking. Try again.');
+      return;
+    }
+    peer.on('open', () => {
+      document.getElementById('game-code').textContent = code;
+      showOnlinePanel('waiting');
+      statusEl.textContent = 'Waiting for opponent…';
+    });
+    peer.on('connection', (c) => {
+      if (conn && conn.open) { try { c.close(); } catch (e) {} return; }
+      conn = c;
+      setupConn();
+    });
+    peer.on('error', (err) => {
+      if (err && err.type === 'unavailable-id') createGame();
+      else setOnlineStatus('Connection error. Try creating a new game.');
+    });
+  }
+
+  function joinGame() {
+    if (!peerReady()) return;
+    const code = document.getElementById('join-code').value.trim().toUpperCase();
+    if (code.length !== 6) { setOnlineStatus('Enter the 6-character code.'); return; }
+    cleanupOnline();
+    myMark = 'O';
+    setOnlineStatus('Connecting…');
+    try {
+      peer = new Peer();
+    } catch (e) {
+      setOnlineStatus('Could not start networking. Try again.');
+      return;
+    }
+    peer.on('open', () => {
+      conn = peer.connect('maverick-ttt-' + code, { reliable: true });
+      setupConn();
+    });
+    peer.on('error', () => {
+      setOnlineStatus("Couldn't find that game. Check the code and try again.");
+    });
+  }
+
+  function setupConn() {
+    conn.on('open', () => {
+      onlineConnected = true;
+      showOnlinePanel('playing');
+      document.getElementById('label-you').textContent = 'You (' + myMark + ')';
+      document.getElementById('label-ai').textContent = 'Opp (' + (myMark === 'X' ? 'O' : 'X') + ')';
+      setOnlineStatus('Connected! You are ' + myMark + '.');
+      if (myMark === 'X') {
+        onlineRound = 0;
+        sendState({ type: 'start', round: 0 });
+        beginOnlineRound('X');
+      } else {
+        statusEl.textContent = 'Connected! Waiting for X to start…';
+      }
+    });
+    conn.on('data', onNetData);
+    conn.on('close', onOpponentLeft);
+    conn.on('error', onOpponentLeft);
+  }
+
+  function onOpponentLeft() {
+    if (!onlineConnected) return;
+    onlineConnected = false;
+    gameOver = true;
+    cleanupOnline();
+    showOnlinePanel('setup');
+    setOnlineStatus('Opponent disconnected.');
+    statusEl.textContent = 'Opponent left the game.';
+  }
+
+  function beginOnlineRound(starterMark) {
+    board = Array(9).fill('');
+    gameOver = false;
+    currentPlayer = starterMark;
+    drawBoard();
+    updateOnlineStatus();
+  }
+
+  function updateOnlineStatus() {
+    if (!onlineConnected || gameOver) return;
+    statusEl.textContent = currentPlayer === myMark ? 'Your move (' + myMark + ')' : "Opponent's move…";
+  }
+
+  function onNetData(msg) {
+    if (!msg || !msg.type) return;
+    if (msg.type === 'start') {
+      onlineRound = msg.round;
+      beginOnlineRound('X');
+    } else if (msg.type === 'move') {
+      if (gameOver || typeof msg.index !== 'number' || board[msg.index]) return;
+      board[msg.index] = currentPlayer;
+      drawBoard();
+      const result = checkWin(board);
+      if (result) { endGame(result); return; }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateOnlineStatus();
+    } else if (msg.type === 'reset') {
+      onlineRound = msg.round;
+      beginOnlineRound(msg.starter);
+    } else if (msg.type === 'rematch-request') {
+      if (myMark === 'X' && onlineConnected && gameOver) {
+        onlineRound++;
+        const starterMark = onlineRound % 2 === 0 ? 'X' : 'O';
+        sendState({ type: 'reset', round: onlineRound, starter: starterMark });
+        beginOnlineRound(starterMark);
+      }
+    }
+  }
+
+  document.getElementById('btn-create').addEventListener('click', createGame);
+  document.getElementById('btn-join-show').addEventListener('click', () => {
+    const f = document.getElementById('join-form');
+    f.style.display = f.style.display === 'none' ? '' : 'none';
+    if (f.style.display !== 'none') document.getElementById('join-code').focus();
+  });
+  document.getElementById('btn-join').addEventListener('click', joinGame);
+  document.getElementById('join-code').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') joinGame();
+  });
+  document.getElementById('btn-copy-code').addEventListener('click', () => {
+    const code = document.getElementById('game-code').textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
+  });
+
+  document.getElementById('difficulty').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    difficulty = e.target.dataset.d;
+    document.querySelectorAll('#difficulty button').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    newGame();
+  });
+
+  document.getElementById('starter').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    starter = e.target.dataset.s;
+    document.querySelectorAll('#starter button').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    newGame();
+  });
+
+  function setTheme(name) {
+    document.body.dataset.theme = name;
+    document.querySelectorAll('#themes button').forEach(b =>
+      b.classList.toggle('active', b.dataset.t === name));
+    try { localStorage.setItem('ttt-theme', name); } catch (e) {}
+  }
+
+  document.getElementById('themes').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    setTheme(btn.dataset.t);
+  });
+
+  try {
+    const savedTheme = localStorage.getItem('ttt-theme');
+    if (savedTheme) setTheme(savedTheme);
+    else document.body.dataset.theme = 'midnight';
+  } catch (e) {
+    document.body.dataset.theme = 'midnight';
+  }
+
+  // Build cells
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    boardEl.appendChild(cell);
+  }
+
+  renderScores();
+  newGame();
+})();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
