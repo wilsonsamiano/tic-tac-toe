@@ -2,7 +2,7 @@
 
 Installable tic-tac-toe. Play against the AI, pass the phone, or start an online game with a 6-character code.
 
-**Play it:** https://wilsonsamiano.github.io/tic-tac-toe/
+Open `index.html` to play. To host it, turn on GitHub Pages: **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**. The site will be https://wilsonsamiano.github.io/tic-tac-toe/
 
 MIT licensed. [Buy me a coffee](https://buymeacoffee.com/wilsonsamiano)
 
